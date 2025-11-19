@@ -12,12 +12,6 @@ class MyClient(Bot):
         print(f'Logged on as {self.user}!')
         await self.add_cog(TestTask(self))
 
-    async def on_message(self, message):
-        if message.author != client.user:
-            return
-
-        if message.content.startswith('$hello'):
-            await message.channel.send('Hello!')
 
 client = MyClient(command_prefix="?")
 if DISCORD_TOKEN is not None:
