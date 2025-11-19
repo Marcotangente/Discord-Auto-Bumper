@@ -15,7 +15,7 @@ def find_time_left(embed: discord.Embed) -> int:
     dict = embed.to_dict()
     description = dict.get("description")
     if description is None:
-        return 0
+        return -1
     return extract_minutes(description)
 
 def extract_minutes(text):
@@ -28,8 +28,4 @@ def extract_minutes(text):
         minutes_value = int(minutes_str)
         return minutes_value
     else:
-        return 0
-
-
-# DISBOARD : La liste des serveurs publics
-#attendez encore 91 minutes avant que le serveur puisse être bumpé !
+        return -1
