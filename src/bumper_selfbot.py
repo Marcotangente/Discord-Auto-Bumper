@@ -16,9 +16,9 @@ class BumperSelfbot(Bot):
 
     async def on_ready(self):
         print(f'Logged on as {self.user}!')
-        channel = self.get_channel(self.channel_id)
+        channel = await self.fetch_channel(self.channel_id)
         if isinstance(channel, discord.TextChannel):
-            
+
             command_list = [
                 cmd for cmd in await channel.application_commands() 
                 if cmd.name == SLASH_COMMAND_NAME and cmd.application_id == TARGET_APPLICATION_ID
