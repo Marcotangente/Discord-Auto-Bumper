@@ -2,16 +2,23 @@ import logging
 import discord
 import asyncio
 import threading
-from typing import Optional, Tuple
+from typing import Optional
+
+from src.disboard_embed_decoder import *
 
 discord.utils.setup_logging(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class AutoBumpService:
+DISBOARD_APPLICATION_ID = 302050872383242240
+BUMP_SLASH_COMMAND_NAME = "bump"
+DISBOARD_BOT_ID = 302050872383242240
+
+class AutoBumpSelfbotService:
     def __init__(self, token: str, connection_timeout: int = 30):
 
         self.bot = discord.Client()
         self.token = token
+        self.listening_channel_id = -1
         
         # Event to know when the bot is ready to accept requests
         self._is_ready = threading.Event()
@@ -38,6 +45,32 @@ class AutoBumpService:
             if not self._is_ready.is_set():
                 logger.info(f'Logged in as {self.bot.user} (ID: {self.bot.user.id})')
                 self._is_ready.set()
+
+        @self.bot.event
+        async def on_message(message: discord.Message):
+            if message.channel.id != self.listening_channel_id:
+                return
+            
+            interaction = message.interaction
+            if interaction is None:
+                return
+            
+            user = self.bot.user
+            guild = message.guild
+            if interaction.name != BUMP_SLASH_COMMAND_NAME or user is None or guild is None or interaction.user.id != user.id:
+                return
+
+            # message.flags.ephemeral
+
+            embeds = message.embeds
+            if embeds:
+                embed = embeds[0]
+                if is_success_embed(embed, guild.id):
+                    logger.info("found bump success")
+                    pass # TODO jsp
+                else:
+                    remaining_time = find_time_left(embed)
+                    logger.info(f"remaining {remaining_time} minutes")
 
         try:
             # We start the selfbot
@@ -121,6 +154,31 @@ class AutoBumpService:
                 return (user.id, user.name)
         
         return self._execute_async(task())
+    
+    def bump_server(self, channel_id: int) -> bool:
+        async def task() -> bool:
+            channel = await self.bot.fetch_channel(channel_id)
+            if isinstance(channel, discord.TextChannel):
+
+                command_list = [
+                    cmd for cmd in await channel.application_commands() 
+                    if cmd.name == BUMP_SLASH_COMMAND_NAME and cmd.application_id == DISBOARD_APPLICATION_ID
+                ]
+
+                if not command_list:
+                    logger.error(f"Command {BUMP_SLASH_COMMAND_NAME} (ID: {DISBOARD_APPLICATION_ID}) not found.")
+                    return False
+
+                target_command = command_list[0]
+
+                self.listening_channel_id = channel_id
+                await target_command.__call__(channel=channel)
+                return True
+
+            return False
+
+        res = self._execute_async(task())
+        return res if isinstance(res, bool) else False
 
 
     def stop(self):
@@ -136,7 +194,7 @@ class AutoBumpService:
             # Wait for confirmation
             future.result(timeout=10)
         except Exception as e:
-            logger.warning(f"Error closing bot gracefully: {e}")
+            logger.warning(f"Error closing bot gracefully: {repr(e)}")
 
         # Now that the bot has finished its 'start()' function, the thread will arrive
         # in the 'finally' block of _run_bot and terminate. We can join it.

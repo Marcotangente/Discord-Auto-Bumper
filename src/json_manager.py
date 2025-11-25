@@ -1,8 +1,7 @@
 import json
-import multiprocessing
 import os
-import queue
-import src.resolver_selfbot as resolver_selfbot
+
+from src.autobump_selfbot_service import AutoBumpSelfbotService
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
@@ -13,7 +12,7 @@ DATA_SERVERS_RELATIVE = "data/servers.json"
 DATA_SELFBOTS = os.path.join(PROJECT_ROOT, DATA_SELFBOTS_RELATIVE)
 DATA_SERVERS = os.path.join(PROJECT_ROOT, DATA_SERVERS_RELATIVE)
 
-def load_selfbots_data() -> dict[str, dict]:
+def load_selfbots_data() -> dict[str, dict[str, str]]:
     if os.path.exists(DATA_SELFBOTS):
         with open(DATA_SELFBOTS, "r", encoding='utf-8') as f:
             try:
@@ -23,7 +22,7 @@ def load_selfbots_data() -> dict[str, dict]:
                 return {}
     return {}
 
-def load_servers_data() -> list:
+def load_servers_data() -> list[dict[str, int | str]]:
     if os.path.exists(DATA_SERVERS):
         with open(DATA_SERVERS, "r", encoding='utf-8') as f:
             try:
@@ -33,132 +32,161 @@ def load_servers_data() -> list:
                 return []
     return []
 
-def register_selfbot(token: str):
-    result_queue = multiprocessing.Queue()
-    bot_process = multiprocessing.Process(target=resolver_selfbot.run_get_accound_id_and_name, args=(token, result_queue))
-
-    bot_process.start()
-    try:
-        res = result_queue.get(timeout=15)
-    except queue.Empty:
-        res = (None, None)
-        if bot_process.is_alive():
-            bot_process.terminate()
-    bot_process.join()
+def register_and_start_selfbot(token: str) -> AutoBumpSelfbotService | None:
+    selfbot_service = AutoBumpSelfbotService(token)
+    res = selfbot_service.get_accound_id_and_name()
+    if res is None:
+        print("Error while registering selfbot.")
+        selfbot_service.stop()
+        return None
 
     id = res[0]
     id_str = str(id)
     name = res[1]
 
-    if id is None or name is None:
-        print("Error while registering selfbot.")
-        return
+    selfbots = load_selfbots_data()
+    if id_str in selfbots:
+        print(f"The selfbot {name} is already registered.")
+        return selfbot_service
 
-    bots = load_selfbots_data()
-    should_save = False
+    selfbots[id_str] = {
+        "Token": token,
+        "Name": name
+    }
+    print(f"Selfot {name} (ID: {id}) successfully saved.")
 
-    if id_str in bots:
-        if bots[id_str]["Name"] == name:
-            print(f"The selfbot {name} is already registered.")
-        else:
-            print(f"Updated the name of the selfbot with id {id} ({bots[id_str]["Name"]} -> {name}).")
-            bots[id_str]["Name"] = name
-            should_save = True
-    else:
-        bots[id_str] = {
-            "Token": token,
-            "Name": name
-        }
-        print(f"Selfot {name} (ID: {id}) successfully saved.")
-        should_save = True
+    ensure_data_directory()
+    with open(DATA_SELFBOTS, "w", encoding='utf-8') as file:
+        json.dump(selfbots, file, indent=4)
 
-    if should_save:
+    return selfbot_service
+
+def update_and_start_selfbot(id: int) -> AutoBumpSelfbotService | None:
+    id_str = str(id)
+    selfbots = load_selfbots_data()
+    selfbot = selfbots.get(id_str)
+    if selfbot is None:
+        print(f"The selfbot with id {id} is not registered.")
+        return None
+
+    selfbot_service = AutoBumpSelfbotService(selfbot["Token"])
+
+    res = selfbot_service.get_accound_id_and_name()
+    if res is None:
+        print(f"Error while updating selfbot with id {id}.")
+        selfbot_service.stop()
+        return None
+
+    name = res[1]
+
+    if selfbot["Name"] != name:
+        print(f"Updated the name of the selfbot with id {id} ({selfbots[id_str]["Name"]} -> {name}).")
+        selfbot["Name"] = name
+
         ensure_data_directory()
         with open(DATA_SELFBOTS, "w", encoding='utf-8') as file:
-            json.dump(bots, file, indent=4)
+            json.dump(selfbots, file, indent=4)
 
+    return selfbot_service
 
-def register_server(guild_id: int, channel_id: int):
-    selfbots = load_selfbots_data()
-    first_bot = next(iter(selfbots.values()), None)
-    if first_bot is None:
-        print("There is no registered selfbot, please register a selfbot before.")
-        return
+def register_server(guild_id: int, channel_id: int, selfbot_service: AutoBumpSelfbotService):
 
-    token = first_bot["Token"]
-
-    result_queue = multiprocessing.Queue()
-    bot_process = multiprocessing.Process(target=resolver_selfbot.run_get_guild_name_and_channel_name, args=(token, guild_id, channel_id, result_queue))
-    bot_process.start()
-    try:
-        res = result_queue.get(timeout=15)
-    except queue.Empty:
-        res = (None, None)
-        if bot_process.is_alive():
-            bot_process.terminate()
-    bot_process.join()
-
-    guild_name = res[0]
-    channel_name = res[1]
+    guild_name = selfbot_service.get_guild_name(guild_id)
+    channel_name = selfbot_service.get_channel_name(channel_id)
 
     if guild_name is None:
         print(f"Server with id {guild_id} not found.")
-        remove_server(guild_id, False)
         return
 
     if channel_name is None:
         print(f"Channel with id {channel_id} not found.")
 
+    servers = load_servers_data()
+
+    existing_server = next((server for server in servers if server["GuildId"] == guild_id), None)
+    if existing_server is not None:
+        print(f"The server {guild_name} is already registered.")
+        return
+
+    if channel_name is not None:
+        new_server = {
+            "GuildId": guild_id,
+            "GuildName": guild_name,
+            "ChannelId": channel_id,
+            "ChannelName": channel_name
+        }
+        servers.append(new_server)
+        print(f"Server {guild_name} (ID: {guild_id}) successfully saved with channel {channel_name} (ID: {channel_id}).")
+    else:
+        new_server = {
+            "GuildId": guild_id,
+            "GuildName": guild_name,
+            "ChannelId": -1,
+            "ChannelName": "NO CHANNEL"
+        }
+        servers.append(new_server)
+        print(f"Server {guild_name} (ID: {guild_id}) successfully saved with no channel, please update the channel.")
+
+    ensure_data_directory()
+    with open(DATA_SERVERS, "w", encoding='utf-8') as file:
+        json.dump(servers, file, indent=4)
+
+def change_server_channel(guild_id: int, channel_id: int, selfbot_service: AutoBumpSelfbotService):
+
+    servers = load_servers_data()
+    existing_server = next((server for server in servers if server["GuildId"] == guild_id), None)
+    if existing_server is None:
+        print(f"The server with id {guild_id} is not registered")
+        return
+
+    if existing_server["ChannelId"] == channel_id:
+        print(f"The new channel for server {existing_server['GuildName']} is the same as before.")
+        return
+
+    channel_name = selfbot_service.get_channel_name(channel_id)
+
+    if channel_name is None:
+        print(f"Channel with id {channel_id} not found.")
+        return
+
+    print(f"Updated the name of the channel in server {existing_server['GuildName']} ! ({existing_server['ChannelName']} -> {channel_name})")
+    existing_server["ChannelId"] = channel_id
+    existing_server["ChannelName"] = channel_name
+
+    ensure_data_directory()
+    with open(DATA_SERVERS, "w", encoding='utf-8') as file:
+        json.dump(servers, file, indent=4)
+
+
+def update_server(guild_id: int, selfbot_service: AutoBumpSelfbotService):
+
+    guild_name = selfbot_service.get_guild_name(guild_id)
+
+    if guild_name is None:
+        print(f"Server with id {guild_id} not found.")
+        return
+
     should_save = False
     servers = load_servers_data()
     existing_server = next((server for server in servers if server["GuildId"] == guild_id), None)
     if existing_server is None:
+        print(f"The server {guild_name} is not registered")
+        return
 
-        if channel_name is not None:
-            new_server = {
-                "GuildId": guild_id,
-                "GuildName": guild_name,
-                "ChannelId": channel_id,
-                "ChannelName": channel_name
-            }
-            servers.append(new_server)
-            print(f"Server {guild_name} (ID: {guild_id}) successfully saved with channel {channel_name} (ID: {channel_id}).")
-        else:
-            new_server = {
-                "GuildId": guild_id,
-                "GuildName": guild_name,
-                "ChannelId": -1,
-                "ChannelName": "NO CHANNEL"
-            }
-            servers.append(new_server)
-            print(f"Server {guild_name} (ID: {guild_id}) successfully saved with no channel, please update the channel.")
+    channel_id: int = existing_server["ChannelId"] # type: ignore
+    channel_name = selfbot_service.get_channel_name(channel_id)
+    if channel_name is None:
+        print(f"Channel with id {channel_id} not found (Channel of server {guild_name}).")
 
+    if existing_server["GuildName"] != guild_name and guild_name is not None:
+        print(f"Updated the name of server {guild_id} ! ({existing_server['GuildName']} -> {guild_name})")
+        existing_server["GuildName"] = guild_name
         should_save = True
 
-    else:
-        if existing_server["GuildName"] != guild_name:
-            print(f"Updated the name of server {guild_id} ! ({existing_server['GuildName']} -> {guild_name})")
-            existing_server["GuildName"] = guild_name
-            should_save = True
-
-        if channel_name is None:
-            print(f"Server {guild_name} is already registered. No changes were made.")
-
-        elif existing_server["ChannelId"] != channel_id:
-            if get_yes_no_input(f"The server {guild_id} is already registered. Do you want to replace the channel {existing_server['ChannelName']} by {channel_name} ?"):
-                print(f"Server {guild_name} successfully updated ! ({existing_server['ChannelName']} -> {channel_name})")
-                existing_server["ChannelId"] = channel_id
-                existing_server["ChannelName"] = channel_name
-                should_save = True
-            else:
-                print("Operation cancelled.")
-        else:
-            if existing_server["ChannelName"] != channel_name:
-                print(f"Updated the name of the channel in {guild_name} ! ({existing_server['ChannelName']} -> {channel_name})")
-                existing_server["ChannelName"] = channel_name
-                should_save = True
-            else:
-                print(f"Server {guild_name} with channel {channel_name} is already registered.")
+    if existing_server["ChannelName"] != channel_name and channel_name is not None:
+        print(f"Updated the name of the channel in {guild_name} ! ({existing_server['ChannelName']} -> {channel_name})")
+        existing_server["ChannelName"] = channel_name
+        should_save = True
 
     if should_save:
         ensure_data_directory()
@@ -166,20 +194,19 @@ def register_server(guild_id: int, channel_id: int):
             json.dump(servers, file, indent=4)
 
 
-
-def remove_selfbot(selfbot_id: str, feedback: bool = True):
+def remove_selfbot(selfbot_id: int):
     selfbots = load_selfbots_data()
-    if selfbot_id in selfbots:
-        removed_bot = selfbots.pop(selfbot_id)
+    id_str = str(selfbot_id)
+    if id_str in selfbots:
+        removed_bot = selfbots.pop(id_str)
         ensure_data_directory()
         with open(DATA_SELFBOTS, "w", encoding='utf-8') as file:
             json.dump(selfbots, file, indent=4)
-        if feedback:
-            print(f"Selfbot {removed_bot['Name']} (ID: {selfbot_id}) successfully removed.")
-    elif feedback:
+        print(f"Selfbot {removed_bot['Name']} (ID: {selfbot_id}) successfully removed.")
+    else:
         print(f"Selbot with id {selfbot_id} not found.")
 
-def remove_server(guild_id: int, feedback: bool = True):
+def remove_server(guild_id: int):
     servers = load_servers_data()
     initial_count = len(servers)
     servers[:] = [server for server in servers if server["GuildId"] != guild_id]
@@ -188,9 +215,8 @@ def remove_server(guild_id: int, feedback: bool = True):
         ensure_data_directory()
         with open(DATA_SERVERS, "w", encoding='utf-8') as file:
             json.dump(servers, file, indent=4)
-        if feedback:
-            print(f"Server with id {guild_id} successfully removed.")
-    elif feedback:
+        print(f"Server with id {guild_id} successfully removed.")
+    else:
         print(f"Server with id {guild_id} not found.")
 
 def display_selfbots():

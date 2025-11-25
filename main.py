@@ -1,12 +1,9 @@
 import os
 import time
 from dotenv import load_dotenv
-import multiprocessing
 
-from src.bumper_selfbot import run_bump_task
-import src.resolver_selfbot as resolver
 import src.json_manager as json_manager
-import src.test_selfbot as test
+import src.autobump_selfbot_service as abs_service
 
 load_dotenv()
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
@@ -18,16 +15,17 @@ GUILD_ID = 1332415672138858587
 # bot_process.join()
 
 start = time.perf_counter()
-#json_manager.register_server(GUILD_ID, CHANNEL_ID)
-#json_manager.register_server(GUILD_ID, CHANNEL_ID)
-service = test.AutoBumpService(DISCORD_TOKEN)
 
-# TODO fuse src.bumper_selfbot and test_selfbot
 
-print(service.get_channel_name(CHANNEL_ID))
-print(service.get_guild_name(GUILD_ID))
-print(service.get_accound_id_and_name())
-service.stop()
+
+service = abs_service.AutoBumpSelfbotService(DISCORD_TOKEN)
+
+if service is not None:
+
+    json_manager.change_server_channel(GUILD_ID, CHANNEL_ID, service)
+
+    service.stop()
+
 print(time.perf_counter()-start)
 
 
