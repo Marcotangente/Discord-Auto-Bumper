@@ -14,7 +14,39 @@ BUMP_SLASH_COMMAND_NAME = "bump"
 DISBOARD_BOT_ID = 302050872383242240
 
 class AutoBumpSelfbotService:
+    """
+    Manages a Discord selfbot instance running in a separate background thread.
+
+    This service provides a synchronous interface to interact with the asynchronous
+    Discord client.
+
+    Attributes
+    ----------
+    bot : discord.Client
+        The Discord client instance.
+    token : str
+        The authentication token for the selfbot.
+    listening_channel_id : int
+        The ID of the channel where the bot expects a response from Disboard.
+    """
+
     def __init__(self, token: str, connection_timeout: int = 30):
+        """
+        Initialize the selfbot service and start the background thread.
+
+        Parameters
+        ----------
+        token : str
+            The user token to authenticate with Discord.
+        connection_timeout : int, optional
+            The maximum number of seconds to wait for the bot to connect
+            (default is 30).
+
+        Raises
+        ------
+        Exception
+            If the bot fails to connect within the timeout period.
+        """
 
         self.bot = discord.Client()
         self.token = token
@@ -38,12 +70,18 @@ class AutoBumpSelfbotService:
             logger.info("DiscordService is ready!")
 
     def _run_bot(self):
+        """
+        Run the bot's event loop in the background thread.
+
+        This handles the 'on_ready' and 'on_message' events.
+        """
+
         asyncio.set_event_loop(self._loop)
 
         @self.bot.event
         async def on_ready():
             if not self._is_ready.is_set():
-                logger.info(f'Logged in as {self.bot.user} (ID: {self.bot.user.id})')
+                logger.info(f'Logged in as {self.bot.user})')
                 self._is_ready.set()
 
         @self.bot.event
@@ -83,7 +121,7 @@ class AutoBumpSelfbotService:
             self._cleanup_loop()
 
     def _cleanup_loop(self):
-            # We need to clean the remaining tasks
+            """Cancel all pending tasks and close the asyncio loop safely."""
             try:
                 pending = asyncio.all_tasks(self._loop)
                 for task in pending:
@@ -100,8 +138,22 @@ class AutoBumpSelfbotService:
 
     def _execute_async(self, coro):
         """
-        Helper to run a coroutine in the bot's loop and wait for the result
-        synchronously.
+        Helper to run a coroutine in the bot's loop and wait for the result synchronously.
+
+        Parameters
+        ----------
+        coro : Coroutine
+            The coroutine to execute in the bot's event loop.
+
+        Returns
+        -------
+        Any
+            The result of the coroutine execution, or None if an error occurs.
+
+        Raises
+        ------
+        Exception
+            If the selfbot is not ready.
         """
 
         if not self._is_ready.is_set():
@@ -120,6 +172,20 @@ class AutoBumpSelfbotService:
 #   ---------------------------- Public Methods --------------------------------
 
     def get_guild_name(self, guild_id: int) -> Optional[str]:
+        """
+        Retrieve the name of a specific guild (server).
+
+        Parameters
+        ----------
+        guild_id : int
+            The ID of the guild.
+
+        Returns
+        -------
+        Optional[str]
+            The name of the guild if found.
+        """
+
         async def task():
             guild = self.bot.get_guild(guild_id)
             if guild:
@@ -134,6 +200,20 @@ class AutoBumpSelfbotService:
         return self._execute_async(task())
 
     def get_channel_name(self, channel_id: int) -> Optional[str]:
+        """
+        Retrieve the name of a specific channel.
+
+        Parameters
+        ----------
+        channel_id : int
+            The ID of the channel.
+
+        Returns
+        -------
+        Optional[str]
+            The name of the channel if found.
+        """
+
         async def task():
             channel = self.bot.get_channel(channel_id)
             if channel:
@@ -148,6 +228,15 @@ class AutoBumpSelfbotService:
         return self._execute_async(task())
     
     def get_accound_id_and_name(self) -> Optional[tuple[int, str]]:
+        """
+        Retrieve the ID and username of the current selfbot account.
+
+        Returns
+        -------
+        Optional[tuple[int, str]]
+            A tuple containing (user_id, user_name) if success.
+        """
+
         async def task():
             user = self.bot.user
             if user is not None:
@@ -156,6 +245,20 @@ class AutoBumpSelfbotService:
         return self._execute_async(task())
     
     def bump_server(self, channel_id: int) -> bool:
+        """
+        Trigger the Disboard /bump command in the specified channel.
+
+        Parameters
+        ----------
+        channel_id : int
+            The ID of the channel where the command should be sent.
+
+        Returns
+        -------
+        bool
+            True if the command was successfully triggered, False otherwise.
+        """
+
         async def task() -> bool:
             channel = await self.bot.fetch_channel(channel_id)
             if isinstance(channel, discord.TextChannel):
@@ -182,6 +285,13 @@ class AutoBumpSelfbotService:
 
 
     def stop(self):
+        """
+        Stop the selfbot gracefully.
+
+        Closes the Discord connection, terminates the event loop, and
+        joins the background thread.
+        """
+
         if not self._is_ready.is_set():
             return
 
