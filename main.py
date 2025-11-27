@@ -18,13 +18,9 @@ start = time.perf_counter()
 
 
 
-service = abs_service.AutoBumpSelfbotService(DISCORD_TOKEN)
 
-if service is not None:
 
-    json_manager.change_server_channel(GUILD_ID, CHANNEL_ID, service)
-
-    service.stop()
+data_manager = json_manager.DataManager()
 
 print(time.perf_counter()-start)
 

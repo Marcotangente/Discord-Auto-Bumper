@@ -227,7 +227,7 @@ class AutoBumpSelfbotService:
         
         return self._execute_async(task())
     
-    def get_accound_id_and_name(self) -> Optional[tuple[int, str]]:
+    def get_account_id_and_name(self) -> Optional[tuple[int, str]]:
         """
         Retrieve the ID and username of the current selfbot account.
 
