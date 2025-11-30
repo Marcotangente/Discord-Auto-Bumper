@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import logging
 import discord
 import asyncio
@@ -13,6 +14,11 @@ DISBOARD_APPLICATION_ID = 302050872383242240
 BUMP_SLASH_COMMAND_NAME = "bump"
 DISBOARD_BOT_ID = 302050872383242240
 
+@dataclass
+class BumpResult:
+    success: bool
+    next_bump_delay_minutes: int
+    
 class AutoBumpSelfbotService:
     """
     Manages a Discord selfbot instance running in a separate background thread.
@@ -55,6 +61,10 @@ class AutoBumpSelfbotService:
         # Event to know when the bot is ready to accept requests
         self._is_ready = threading.Event()
 
+        # Event to know when the bot see a bump response
+        self._bump_response_event = threading.Event()
+        self._last_bump_result: Optional[BumpResult] = None
+
         # Thread configuration
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._run_bot, daemon=True)
@@ -86,7 +96,7 @@ class AutoBumpSelfbotService:
 
         @self.bot.event
         async def on_message(message: discord.Message):
-            if message.channel.id != self.listening_channel_id:
+            if message.channel.id != self.listening_channel_id or message.author.id != DISBOARD_BOT_ID:
                 return
             
             interaction = message.interaction
@@ -103,12 +113,18 @@ class AutoBumpSelfbotService:
             embeds = message.embeds
             if embeds:
                 embed = embeds[0]
+                result = None
                 if is_success_embed(embed, guild.id):
-                    logger.info("found bump success")
-                    pass # TODO jsp
+                    logger.info(f"Successfully bumped server '{guild.name}' on channel '{message.channel.name}'.")
+                    result = BumpResult(success=True, next_bump_delay_minutes=120)
                 else:
                     remaining_time = find_time_left(embed)
-                    logger.info(f"remaining {remaining_time} minutes")
+                    logger.info(f"Tried to bump '{guild.name}' on channel '{message.channel.name}', but server on cooldown ({remaining_time} minutes).")
+                    result = BumpResult(success=False, next_bump_delay_minutes=remaining_time)
+
+                if result is not None:
+                    self._last_bump_result = result
+                    self._bump_response_event.set()
 
         try:
             # We start the selfbot
@@ -259,6 +275,10 @@ class AutoBumpSelfbotService:
             True if the command was successfully triggered, False otherwise.
         """
 
+        # reset result before sending
+        self._bump_response_event.clear()
+        self._last_bump_result = None
+
         async def task() -> bool:
             channel = await self.bot.fetch_channel(channel_id)
             if isinstance(channel, discord.TextChannel):
@@ -282,6 +302,19 @@ class AutoBumpSelfbotService:
 
         res = self._execute_async(task())
         return res if isinstance(res, bool) else False
+    
+
+    def wait_for_bump_result(self, timeout: int = 10) -> Optional[BumpResult]:
+        """
+        Block execution until on_message receives the result or timeout occurs.
+        """
+        is_set = self._bump_response_event.wait(timeout=timeout)
+        
+        if is_set:
+            return self._last_bump_result
+        else:
+            logger.warning("Timed out waiting for Disboard response.")
+            return None
 
 
     def stop(self):
