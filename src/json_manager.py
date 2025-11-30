@@ -176,7 +176,7 @@ class DataManager():
             return
 
         if isinstance(selfbot["NextBumpTimestamp"], int):
-            selfbot["NextBumpTimestamp"] = round(time.time()) + cooldown
+            selfbot["NextBumpTimestamp"] = round(time.time()) + cooldown * 60
             self._save_selfbots()
 
     def register_server(self, guild_id: int, channel_id: int, selfbot_service: AutoBumpSelfbotService):
@@ -345,7 +345,7 @@ class DataManager():
             return
 
         if isinstance(server["NextBumpTimestamp"], int):
-            server["NextBumpTimestamp"] = round(time.time()) + cooldown
+            server["NextBumpTimestamp"] = round(time.time()) + cooldown * 60
             self._save_servers()
 
     def display_selfbots(self):
