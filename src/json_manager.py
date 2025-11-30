@@ -179,7 +179,7 @@ class DataManager():
             selfbot["NextBumpTimestamp"] = round(time.time()) + cooldown * 60
             self._save_selfbots()
 
-    def register_server(self, guild_id: int, channel_id: int, selfbot_service: AutoBumpSelfbotService):
+    def register_server(self, guild_id: int, channel_id: int, selfbot_service: AutoBumpSelfbotService) -> bool:
         """
         Register a new server and the channel associated.
         
@@ -191,6 +191,11 @@ class DataManager():
             The id of the channel to register with the server.
         selfbot_service : AutoBumpSelfbotService
             A selfbot service which has an access to the server and channel.
+
+        Return
+        -------
+        bool
+            True if success, False otherwise.
         """
 
         guild_name = selfbot_service.get_guild_name(guild_id)
@@ -198,7 +203,7 @@ class DataManager():
 
         if guild_name is None:
             print(f"Server ID {guild_id} not found.")
-            return
+            return False
 
         if channel_name is None:
             print(f"Channel ID {channel_id} not found.")
@@ -207,7 +212,7 @@ class DataManager():
         existing_server = next((server for server in self.servers if server["GuildId"] == guild_id), None)
         if existing_server is not None:
             print(f"Server '{guild_name}' is already registered.")
-            return
+            return False
 
         if channel_name is not None:
             new_server = {
@@ -231,6 +236,7 @@ class DataManager():
             print(f"Server '{guild_name}' (ID: {guild_id}) saved without channel. Please update channel.")
 
         self._save_servers()
+        return True
 
     def change_server_channel(self, guild_id: int, channel_id: int, selfbot_service: AutoBumpSelfbotService):
         """
