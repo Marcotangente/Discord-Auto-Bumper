@@ -7,7 +7,6 @@ from typing import Optional
 
 from src.disboard_embed_decoder import *
 
-discord.utils.setup_logging(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 DISBOARD_APPLICATION_ID = 302050872383242240
@@ -115,11 +114,9 @@ class AutoBumpSelfbotService:
                 embed = embeds[0]
                 result = None
                 if is_success_embed(embed, guild.id):
-                    logger.info(f"Successfully bumped server '{guild.name}' on channel '{message.channel.name}'.")
                     result = BumpResult(success=True, next_bump_delay_minutes=120)
                 else:
                     remaining_time = find_time_left(embed)
-                    logger.info(f"Tried to bump '{guild.name}' on channel '{message.channel.name}', but server on cooldown ({remaining_time} minutes).")
                     result = BumpResult(success=False, next_bump_delay_minutes=remaining_time)
 
                 if result is not None:
