@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import logging
+import sys
 import discord
 import asyncio
 import threading
@@ -65,7 +66,10 @@ class AutoBumpSelfbotService:
         self._last_bump_result: Optional[BumpResult] = None
 
         # Thread configuration
-        self._loop = asyncio.new_event_loop()
+        if sys.platform == "win32":
+            self._loop = asyncio.WindowsSelectorEventLoopPolicy().new_event_loop()
+        else:
+            self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._run_bot, daemon=True)
 
         # Start the bot
@@ -128,26 +132,41 @@ class AutoBumpSelfbotService:
             self._loop.run_until_complete(self.bot.start(self.token))
         except asyncio.CancelledError:
             pass
+        except OSError as e:
+            if e.winerror == 10038:
+                pass
+            else:
+                logger.error(f"OSError in selfbot execution: {e}")
         except Exception as e:
             logger.error(f"Error in selfbot execution: {e}")
         finally:
             self._cleanup_loop()
 
     def _cleanup_loop(self):
-            """Cancel all pending tasks and close the asyncio loop safely."""
-            try:
-                pending = asyncio.all_tasks(self._loop)
-                for task in pending:
-                    task.cancel()
-                
-                # Let the tasks cancel themselves
-                if pending:
-                    self._loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-                
-                self._loop.close()
-                logger.info("Bot thread cleaned up and closed.")
-            except Exception as e:
-                logger.error(f"Error during cleanup: {e}")
+        """Cancel all pending tasks and close the asyncio loop safely."""
+        try:
+            if self._loop.is_closed():
+                return
+
+            pending = asyncio.all_tasks(self._loop)
+            for task in pending:
+                task.cancel()
+            
+            if pending:
+                self._loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            
+            self._loop.run_until_complete(self._loop.shutdown_asyncgens())
+
+            self._loop.close()
+            logger.info("Bot thread cleaned up and closed.")
+
+        except OSError as e:
+            if e.winerror == 10038:
+                pass
+            else:
+                logger.error(f"OSError during cleanup: {e}")
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
 
     def _execute_async(self, coro):
         """
