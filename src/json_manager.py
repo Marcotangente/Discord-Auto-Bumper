@@ -12,7 +12,7 @@ class DataManager():
     ----------
     selfbots : dict[str, dict[str, str | int]]
         Contains selfbot data, keyed by account ID (str). Each value is a dict 
-        containing the keys "Token", "Name" (str) and "NextActiveTimestamp" (int).
+        containing the keys "Token", "Name" (str) and "NextBumpTimestamp" (int).
     servers : list[dict[str, int | str]]
         List of server/channel configurations. Each dictionary contains the keys 
         "GuildId" (int), "GuildName" (str), "ChannelId" (int), "ChannelName" (str) 
@@ -94,7 +94,7 @@ class DataManager():
         self.selfbots[id_str] = {
             "Token": token,
             "Name": name,
-            "NextActiveTimestamp": -1
+            "NextBumpTimestamp": -1
         }
         print(f"Selfbot '{name}' (ID: {id}) saved successfully.")
 
@@ -164,9 +164,9 @@ class DataManager():
         """Check if the personal cooldown of the selfbot has expired."""
 
         selfbot = self.selfbots.get(str(id))
-        if selfbot is None or not isinstance(selfbot["NextActiveTimestamp"], int) :
+        if selfbot is None or not isinstance(selfbot["NextBumpTimestamp"], int) :
             return False
-        return selfbot["NextActiveTimestamp"] <= time.time()
+        return selfbot["NextBumpTimestamp"] <= time.time()
 
     def set_selfbot_cooldown(self, id: int, cooldown: int):
         """Set the personal cooldown for a selfbot."""
@@ -175,8 +175,8 @@ class DataManager():
             print(f"Selfbot ID {id} is not registered.")
             return
 
-        if isinstance(selfbot["NextActiveTimestamp"], int):
-            selfbot["NextActiveTimestamp"] = round(time.time()) + cooldown
+        if isinstance(selfbot["NextBumpTimestamp"], int):
+            selfbot["NextBumpTimestamp"] = round(time.time()) + cooldown
             self._save_selfbots()
 
     def register_server(self, guild_id: int, channel_id: int, selfbot_service: AutoBumpSelfbotService):
@@ -354,7 +354,9 @@ class DataManager():
             print("No bots found.")
         else:
             for bot_id, data in self.selfbots.items():
-                print(f"ID: {bot_id} | Name: {data['Name']}")
+                now = time.time()
+                delta = (data["NextBumpTimestamp"] - now ) / 60 # type: ignore
+                print(f"ID: {bot_id} | Name: {data['Name']} | Next bump in {round(delta)} minutes")
 
     def display_servers(self):
         print(f"\n--- Registered Servers ({len(self.servers)}) ---")
@@ -362,4 +364,6 @@ class DataManager():
             print("No servers found.")
         else:
             for server in self.servers:
-                print(f"Server: {server['GuildName']} ({server['GuildId']}) -> Channel: {server['ChannelName']} ({server['ChannelId']})")
+                now = time.time()
+                delta = (server["NextBumpTimestamp"] - now ) / 60 # type: ignore
+                print(f"Server: {server['GuildName']} ({server['GuildId']}) -> Channel: {server['ChannelName']} ({server['ChannelId']}), bumpable in {round(delta)} minutes.")

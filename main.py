@@ -2,6 +2,7 @@ import os
 import time
 from dotenv import load_dotenv
 
+from src.bump_scheduler import BumpScheduler
 import src.json_manager as json_manager
 import src.autobump_selfbot_service as abs_service
 
@@ -10,20 +11,12 @@ DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 CHANNEL_ID = 1396626329129975849
 GUILD_ID = 1332415672138858587
 
-# bot_process = multiprocessing.Process(target=run_bump_task, args=(DISCORD_TOKEN, CHANNEL_ID))
-# bot_process.start()
-# bot_process.join()
-
-start = time.perf_counter()
-
-
-
-
 
 data_manager = json_manager.DataManager()
 
-print(time.perf_counter()-start)
+bmp = BumpScheduler(data_manager)
 
+bmp.loop()
 
 
 # while True:
