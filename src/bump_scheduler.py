@@ -119,10 +119,9 @@ class BumpScheduler():
             if service is not None:
                 service.stop()
         elif choice == "4":
-            bot_id = input("Selfbot ID to remove: ")
-            if bot_id.isdigit():
-                self.data_manager.remove_selfbot(int(bot_id))
-                print(f"Selfbot {bot_id} removed.")
+            guild_id = input("Selfbot ID to remove: ")
+            if guild_id.isdigit():
+                self.data_manager.remove_selfbot(int(guild_id))
             else:
                 print("Invalid ID.")
         elif choice == "5":
@@ -142,6 +141,12 @@ class BumpScheduler():
                             break
             else:
                 print("Invalid inputs.")
+        elif choice == "7":
+            guild_id = input("Server ID to remove: ")
+            if guild_id.isdigit():
+                self.data_manager.remove_server(int(guild_id))
+            else:
+                print("Invalid ID.")
 
         elif choice == "0":
             self.state = ProgramState.EXIT
