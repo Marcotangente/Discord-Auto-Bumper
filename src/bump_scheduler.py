@@ -29,7 +29,7 @@ class BumpScheduler():
         while self.state != ProgramState.EXIT:
             if self.state == ProgramState.BUMPING:
                 try:
-                    self.bumping()
+                    self._bumping()
                 except KeyboardInterrupt:
                     print("\n")
                     logger.info("Switching to configuration mode...")
@@ -37,14 +37,14 @@ class BumpScheduler():
 
             elif self.state == ProgramState.CONFIGURATING:
                 try:
-                    self.configurating()
+                    self._configurating()
                 except KeyboardInterrupt:
                     print("\n")
                     self.state = ProgramState.EXIT
 
-        self.exit()
+        self._exit()
 
-    def bumping(self):
+    def _bumping(self):
         for server in self.data_manager.servers:
             guild_id = int(server["GuildId"])
             
@@ -90,7 +90,7 @@ class BumpScheduler():
                 break
             time.sleep(1)
 
-    def configurating(self):
+    def _configurating(self):
         print("\n" + "="*10 + " CONFIG MANAGER " + "="*10)
         print("1. Auto Bumper Loop")
         print("2. Display selfbots")
@@ -99,6 +99,7 @@ class BumpScheduler():
         print("5. Display servers")
         print("6. Register new server")
         print("7. Remove server")
+        print("8. Reorder servers")
         print("0. Close program")
         print("="*36)
         
@@ -148,11 +149,22 @@ class BumpScheduler():
             else:
                 print("Invalid ID.")
 
+        elif choice == "8":
+            self._reorder_servers()
+
         elif choice == "0":
             self.state = ProgramState.EXIT
         else:
             print("Invalid option.")
 
-    def exit(self):
-        logger.info("Shutting down services and exiting. Goodbye!")
+    def _reorder_servers(self):
+        finished = False
+        while not finished:
+            self.data_manager.display_servers()
+            caca = input()
+            if caca.isdigit():
+                finished = True
+
+    def _exit(self):
+        logger.info("Goodbye!")
         sys.exit(0)
