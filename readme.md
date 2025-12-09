@@ -1,4 +1,4 @@
-recommended :
+HIGHLY RECOMMANDED (breaks other discord lib) :
 
 python3 -m venv venv
 
