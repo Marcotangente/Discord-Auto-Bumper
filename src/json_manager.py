@@ -1,8 +1,10 @@
 import json
+import logging
 import time
 from pathlib import Path
 
 from src.autobump_selfbot_service import AutoBumpSelfbotService
+from src.console import console
 
 class DataManager():
     """
@@ -43,7 +45,7 @@ class DataManager():
                 try:
                     self.selfbots = json.load(f)
                 except json.JSONDecodeError:
-                    print(f"Error loading file: {self._selfbots_path}")
+                    console.print(f"Error loading file: {self._selfbots_path}")
 
     def _load_servers_data(self):
         if self._servers_path.exists():
@@ -51,7 +53,7 @@ class DataManager():
                 try:
                     self.servers = json.load(f)
                 except json.JSONDecodeError:
-                    print(f"Error loading file: {self._servers_path}")
+                    console.print(f"Error loading file: {self._servers_path}")
 
     def _save_selfbots(self):
         with open(self._selfbots_path, "w", encoding='utf-8') as file:
@@ -79,7 +81,7 @@ class DataManager():
         selfbot_service = AutoBumpSelfbotService(token)
         res = selfbot_service.get_account_id_and_name()
         if res is None:
-            print("Failed to register selfbot: Invalid token or connection error.")
+            console.print("Failed to register selfbot: Invalid token or connection error.")
             selfbot_service.stop()
             return None
 
@@ -88,7 +90,7 @@ class DataManager():
         name = res[1]
 
         if id_str in self.selfbots:
-            print(f"Selfbot '{name}' (ID: {id}) is already registered.")
+            console.print(f"Selfbot '{name}' (ID: {id}) is already registered.")
             return selfbot_service
 
         self.selfbots[id_str] = {
@@ -96,7 +98,7 @@ class DataManager():
             "Name": name,
             "NextBumpTimestamp": -1
         }
-        print(f"Selfbot '{name}' (ID: {id}) saved successfully.")
+        console.print(f"Selfbot '{name}' (ID: {id}) saved successfully.")
 
         self._save_selfbots()
 
@@ -122,21 +124,21 @@ class DataManager():
         id_str = str(id)
         selfbot = self.selfbots.get(id_str)
         if selfbot is None:
-            print(f"Selfbot ID {id} is not registered.")
+            console.print(f"Selfbot ID {id} is not registered.")
             return None
 
         selfbot_service = AutoBumpSelfbotService(selfbot["Token"]) # type: ignore
 
         res = selfbot_service.get_account_id_and_name()
         if res is None:
-            print(f"Error updating selfbot ID {id}: Could not retrieve account info.")
+            console.print(f"Error updating selfbot ID {id}: Could not retrieve account info.")
             selfbot_service.stop()
             return None
 
         name = res[1]
 
         if selfbot["Name"] != name:
-            print(f"Updated selfbot name (ID: {id}): '{self.selfbots[id_str]["Name"]}' -> '{name}'.")
+            console.print(f"Updated selfbot name (ID: {id}): '{self.selfbots[id_str]["Name"]}' -> '{name}'.")
             selfbot["Name"] = name
             self._save_selfbots()
 
@@ -156,9 +158,9 @@ class DataManager():
         if id_str in self.selfbots:
             removed_bot = self.selfbots.pop(id_str)
             self._save_selfbots()
-            print(f"Selfbot '{removed_bot['Name']}' (ID: {selfbot_id}) removed successfully.")
+            console.print(f"Selfbot '{removed_bot['Name']}' (ID: {selfbot_id}) removed successfully.")
         else:
-            print(f"Selfbot ID {selfbot_id} not found.")
+            console.print(f"Selfbot ID {selfbot_id} not found.")
 
     def is_selfbot_able_to_bump(self, id: int) -> bool:
         """Check if the personal cooldown of the selfbot has expired."""
@@ -172,7 +174,7 @@ class DataManager():
         """Set the personal cooldown for a selfbot."""
         selfbot = self.selfbots.get(str(id))
         if selfbot is None:
-            print(f"Selfbot ID {id} is not registered.")
+            console.print(f"Selfbot ID {id} is not registered.")
             return
 
         if isinstance(selfbot["NextBumpTimestamp"], int):
@@ -202,16 +204,16 @@ class DataManager():
         channel_name = selfbot_service.get_channel_name(channel_id)
 
         if guild_name is None:
-            print(f"Server ID {guild_id} not found.")
+            console.print(f"Server ID {guild_id} not found.")
             return False
 
         if channel_name is None:
-            print(f"Channel ID {channel_id} not found.")
+            console.print(f"Channel ID {channel_id} not found.")
 
 
         existing_server = next((server for server in self.servers if server["GuildId"] == guild_id), None)
         if existing_server is not None:
-            print(f"Server '{guild_name}' is already registered.")
+            console.print(f"Server '{guild_name}' is already registered.")
             return False
 
         if channel_name is not None:
@@ -223,7 +225,7 @@ class DataManager():
                 "NextBumpTimestamp" : -1
             }
             self.servers.append(new_server)
-            print(f"Server '{guild_name}' (ID: {guild_id}) saved with channel '{channel_name}' (ID: {channel_id}).")
+            console.print(f"Server '{guild_name}' (ID: {guild_id}) saved with channel '{channel_name}' (ID: {channel_id}).")
         else:
             new_server = {
                 "GuildId": guild_id,
@@ -233,7 +235,7 @@ class DataManager():
                 "NextBumpTimestamp" : -1
             }
             self.servers.append(new_server)
-            print(f"Server '{guild_name}' (ID: {guild_id}) saved without channel. Please update channel.")
+            console.print(f"Server '{guild_name}' (ID: {guild_id}) saved without channel. Please update channel.")
 
         self._save_servers()
         return True
@@ -254,20 +256,20 @@ class DataManager():
 
         existing_server = next((server for server in self.servers if server["GuildId"] == guild_id), None)
         if existing_server is None:
-            print(f"Server ID {guild_id} is not registered.")
+            console.print(f"Server ID {guild_id} is not registered.")
             return
 
         if existing_server["ChannelId"] == channel_id:
-            print(f"Channel for server '{existing_server['GuildName']}' is unchanged.")
+            console.print(f"Channel for server '{existing_server['GuildName']}' is unchanged.")
             return
 
         channel_name = selfbot_service.get_channel_name(channel_id)
 
         if channel_name is None:
-            print(f"Channel ID {channel_id} not found.")
+            console.print(f"Channel ID {channel_id} not found.")
             return
 
-        print(f"Updated channel for server '{existing_server['GuildName']}': '{existing_server['ChannelName']}' -> '{channel_name}'.")
+        console.print(f"Updated channel for server '{existing_server['GuildName']}': '{existing_server['ChannelName']}' -> '{channel_name}'.")
         existing_server["ChannelId"] = channel_id
         existing_server["ChannelName"] = channel_name
 
@@ -288,27 +290,27 @@ class DataManager():
         guild_name = selfbot_service.get_guild_name(guild_id)
 
         if guild_name is None:
-            print(f"Server ID {guild_id} not found.")
+            console.print(f"Server ID {guild_id} not found.")
             return
 
         should_save = False
         existing_server = next((server for server in self.servers if server["GuildId"] == guild_id), None)
         if existing_server is None:
-            print(f"Server '{guild_name}' is not registered.")
+            console.print(f"Server '{guild_name}' is not registered.")
             return
 
         channel_id: int = existing_server["ChannelId"] # type: ignore
         channel_name = selfbot_service.get_channel_name(channel_id)
         if channel_name is None:
-            print(f"Channel ID {channel_id} not found (Server: '{guild_name}').")
+            console.print(f"Channel ID {channel_id} not found (Server: '{guild_name}').")
 
         if existing_server["GuildName"] != guild_name and guild_name is not None:
-            print(f"Updated server name (ID: {guild_id}): '{existing_server['GuildName']}' -> '{guild_name}'.")
+            console.print(f"Updated server name (ID: {guild_id}): '{existing_server['GuildName']}' -> '{guild_name}'.")
             existing_server["GuildName"] = guild_name
             should_save = True
 
         if existing_server["ChannelName"] != channel_name and channel_name is not None:
-            print(f"Updated channel name for '{guild_name}': '{existing_server['ChannelName']}' -> '{channel_name}'.")
+            console.print(f"Updated channel name for '{guild_name}': '{existing_server['ChannelName']}' -> '{channel_name}'.")
             existing_server["ChannelName"] = channel_name
             should_save = True
 
@@ -330,9 +332,9 @@ class DataManager():
         if removed_count > 0:
             self._save_servers()
 
-            print(f"Server ID {guild_id} removed successfully.")
+            console.print(f"Server ID {guild_id} removed successfully.")
         else:
-            print(f"Server ID {guild_id} not found.")
+            console.print(f"Server ID {guild_id} not found.")
 
     def is_server_bumpable(self, id: int) -> bool:
         """Check if the cooldown of the server has expired."""
@@ -347,7 +349,7 @@ class DataManager():
 
         server = next((server for server in self.servers if server["GuildId"] == id), None)
         if server is None:
-            print(f"Server ID {id} is not registered.")
+            console.print(f"Server ID {id} is not registered.")
             return
 
         if isinstance(server["NextBumpTimestamp"], int):
@@ -355,21 +357,21 @@ class DataManager():
             self._save_servers()
 
     def display_selfbots(self):
-        print(f"\n--- Registered Bots ({len(self.selfbots)}) ---")
+        console.print(f"\n--- Registered Bots ({len(self.selfbots)}) ---")
         if not self.selfbots:
-            print("No bots found.")
+            console.print("No bots found.")
         else:
             for bot_id, data in self.selfbots.items():
                 now = time.time()
                 delta = (data["NextBumpTimestamp"] - now ) / 60 # type: ignore
-                print(f"ID: {bot_id} | Name: {data['Name']} | Next bump in {round(delta)} minutes")
+                console.print(f"ID: {bot_id} | Name: [magenta]{data['Name']}[/] | Next bump in {round(delta)} minutes")
 
     def display_servers(self):
-        print(f"\n--- Registered Servers ({len(self.servers)}) ---")
+        console.print(f"\n--- Registered Servers ({len(self.servers)}) ---")
         if not self.servers:
-            print("No servers found.")
+            console.print("No servers found.")
         else:
             for server in self.servers:
                 now = time.time()
                 delta = (server["NextBumpTimestamp"] - now ) / 60 # type: ignore
-                print(f"Server: {server['GuildName']} ({server['GuildId']}) -> Channel: {server['ChannelName']} ({server['ChannelId']}), bumpable in {round(delta)} minutes.")
+                console.print(f"Server: {server['GuildName']} ({server['GuildId']}) -> Channel: {server['ChannelName']} ({server['ChannelId']}), bumpable in {round(delta)} minutes.")

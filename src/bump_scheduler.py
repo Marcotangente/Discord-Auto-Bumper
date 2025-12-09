@@ -2,11 +2,14 @@ from enum import IntEnum
 import logging
 import sys
 import time
-from datetime import datetime
+from rich.panel import Panel
+from rich.table import Table
+from rich import box
+from rich.prompt import Prompt
 
-import discord
 from src.autobump_selfbot_service import AutoBumpSelfbotService
 from src.json_manager import DataManager
+from src.console import console
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +34,16 @@ class BumpScheduler():
                 try:
                     self._bumping()
                 except KeyboardInterrupt:
-                    print("\n")
+                    console.print("\n")
                     logger.info("Switching to configuration mode...")
                     self.state = ProgramState.CONFIGURATING
+                    time.sleep(1.5)
 
             elif self.state == ProgramState.CONFIGURATING:
                 try:
                     self._configurating()
                 except KeyboardInterrupt:
-                    print("\n")
+                    console.print("\n")
                     self.state = ProgramState.EXIT
 
         self._exit()
@@ -80,7 +84,7 @@ class BumpScheduler():
                                 if result.success:
                                     break # move to next server
                             else:
-                                logger.error("No result received from Discord.")
+                                logger.warning("No result received from Discord.")
 
                     time.sleep(1)
 
@@ -91,46 +95,63 @@ class BumpScheduler():
             time.sleep(1)
 
     def _configurating(self):
-        print("\n" + "="*10 + " CONFIG MANAGER " + "="*10)
-        print("1. Auto Bumper Loop")
-        print("2. Display selfbots")
-        print("3. Register new selfbot")
-        print("4. Remove selfbot")
-        print("5. Display servers")
-        print("6. Register new server")
-        print("7. Remove server")
-        print("8. Reorder servers")
-        print("0. Close program")
-        print("="*36)
+        console.clear()
+
+        menu_table = Table(show_header=False, box=None, padding=(0, 2))
+        menu_table.add_column("ID", style="bold cyan", justify="right")
+        menu_table.add_column("Description", style="white")
+        menu_table.add_row("1.", "Auto Bumper Loop")
+        menu_table.add_row("2.", "Display selfbots")
+        menu_table.add_row("3.", "Register new selfbot")
+        menu_table.add_row("4.", "Remove selfbot")
+        menu_table.add_row("5.", "Display servers")
+        menu_table.add_row("6.", "Register new server")
+        menu_table.add_row("7.", "Remove server")
+        menu_table.add_row("8.", "Reorder servers")
+        menu_table.add_row(None, None)
+        menu_table.add_row("0.", "Close program")
+
+        menu_panel = Panel(
+            menu_table,
+            title="[bold magenta]CONFIG MANAGER[/]",
+            border_style="purple4",
+            expand=False,
+        )
         
-        try:
-            choice = input("Select an option: ").strip()
-        except EOFError:
-            return # handle abrupt closing
+        console.print("\n")
+        console.print(menu_panel)
+
+        choice = Prompt.ask(
+            "Please select an option", 
+            choices=["0", "1", "2", "3", "4", "5", "6", "7", "8"],
+            show_choices=False
+        )
 
         if choice == "1":
+            console.clear()
             logger.info("Resuming auto-bump loop...")
             self.state = ProgramState.BUMPING
         elif choice == "2":
             self.data_manager.display_selfbots()
-            input("Press Enter to continue...")
+            console.input("Press [#99aab5]Enter[/] to continue...")
         elif choice == "3":
-            token = input("Account token: ")
+            token = console.input("Account token: ")
             service = self.data_manager.register_and_start_selfbot_service(token)
             if service is not None:
                 service.stop()
         elif choice == "4":
-            guild_id = input("Selfbot ID to remove: ")
+            guild_id = console.input("Selfbot ID to remove: ")
             if guild_id.isdigit():
                 self.data_manager.remove_selfbot(int(guild_id))
             else:
-                print("Invalid ID.")
+                console.print("Invalid ID.")
+            time.sleep(2)
         elif choice == "5":
             self.data_manager.display_servers()
-            input("Press Enter to continue...")
+            console.input("Press [#99aab5]Enter[/] to continue...")
         elif choice == "6":
-            guild_id = input("Server ID: ")
-            channel_id = input("Channel ID: ")
+            guild_id = console.input("Server ID: ")
+            channel_id = console.input("Channel ID: ")
             if guild_id.isdigit() and channel_id.isdigit():
                 for selfbot_id in self.data_manager.selfbots.keys():
                     sb_id = int(selfbot_id)
@@ -141,13 +162,15 @@ class BumpScheduler():
                         if registered:
                             break
             else:
-                print("Invalid inputs.")
+                console.print("Invalid inputs.")
+            time.sleep(2)
         elif choice == "7":
-            guild_id = input("Server ID to remove: ")
+            guild_id = console.input("Server ID to remove: ")
             if guild_id.isdigit():
                 self.data_manager.remove_server(int(guild_id))
             else:
-                print("Invalid ID.")
+                console.print("Invalid ID.")
+            time.sleep(2)
 
         elif choice == "8":
             self._reorder_servers()
@@ -155,7 +178,7 @@ class BumpScheduler():
         elif choice == "0":
             self.state = ProgramState.EXIT
         else:
-            print("Invalid option.")
+            console.print("Invalid option.")
 
     def _reorder_servers(self):
         finished = False
@@ -166,5 +189,6 @@ class BumpScheduler():
                 finished = True
 
     def _exit(self):
-        logger.info("Goodbye!")
+        console.print("Goodbye!")
+        time.sleep(1)
         sys.exit(0)

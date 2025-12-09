@@ -7,6 +7,7 @@ import threading
 from typing import Optional
 
 from src.disboard_embed_decoder import *
+from src.console import console
 
 logger = logging.getLogger(__name__)
 
