@@ -18,3 +18,6 @@ CTRL-C to access configuration
 how do i have my token ? -> https://discordpy-self.readthedocs.io/en/latest/authenticating.html#how-do-i-obtain-mine
 
 
+please do not share data/selfbots.json, it contains your tokens...
+
+this program is obviously used only for educational purpose :D
