@@ -1,20 +1,45 @@
-HIGHLY RECOMMANDED (breaks other discord lib) :
+<a id="readme-top"></a>
 
-python3 -m venv venv
+<!-- ABOUT THE PROJECT -->
+## About The Project
 
-activate virtual env :
+A CLI programm to automate bumping your discord servers on disboard.org.
 
-linux : source venv/bin/activate
-windows : uninstall windows
+## Installation
 
-install requirements:
-pip install -r requirements.txt
+1. Clone the repo
 
-launch program:
+2. (Optional but very recommanded) Create a virtual environnement
+   The `discord.py-self` API installation may break the `discord.py`API,
+   so I recommand creating a virtual environnement.
+
+   For venv usage, check [https://www.w3schools.com/python/python_virtualenv.asp](this link)
+
+3. Install requirements
+
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+<!-- USAGE EXAMPLES -->
+## Usage
+
+Launch program
+
+Linux:
+
+```sh
 python3 main.py
+```
 
-CTRL-C to access configuration
+Windows:
 
-how do i have my token ? -> https://discordpy-self.readthedocs.io/en/latest/authenticating.html#how-do-i-obtain-mine
+```sh
+python main.py
+```
 
-
+If it's your first time, the program will open the configuration manager. You
+will have to register at least one server and one selfbot.
+All the config options are straight forward, but maybe not the reorder option.
+The inputs for reorder are "s" to save the new order, "q" to quit without saving
+or "x y" to move a server from index x to index y.

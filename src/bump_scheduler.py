@@ -21,12 +21,8 @@ class BumpScheduler():
     def __init__(self, data_manager: DataManager) -> None:
         self.bump_count = 0
         self.data_manager = data_manager
-        if not self.data_manager.selfbots or not self.data_manager.servers:
-            logger.warning("No selfbots or servers configured. Entering configuration mode.")
-            self.state = ProgramState.CONFIGURATING
-        else:
-            self.state = ProgramState.BUMPING
-            logger.info("Starting auto-bump loop...")
+        self.state = ProgramState.BUMPING
+        logger.info("Starting auto-bump loop...")
 
     def loop(self):
         while self.state != ProgramState.EXIT:
@@ -49,6 +45,12 @@ class BumpScheduler():
         self._exit()
 
     def _bumping(self):
+        if not self.data_manager.selfbots or not self.data_manager.servers:
+            logger.warning("No selfbots or servers configured. Entering configuration mode.")
+            self.state = ProgramState.CONFIGURATING
+            time.sleep(3.33)
+            return
+
         for server in self.data_manager.servers:
             guild_id = int(server["GuildId"])
             
