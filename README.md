@@ -1,45 +1,46 @@
 <a id="readme-top"></a>
 
-<!-- ABOUT THE PROJECT -->
-## About The Project
+## About
 
-A CLI programm to automate bumping your discord servers on disboard.org.
+A CLI program to automate bumping your Discord servers on Disboard.org.
 
 ## Installation
 
-1. Clone the repo
+1. Clone the repository.
 
-2. (Optional but very recommanded) Create a virtual environnement
-   The `discord.py-self` API installation may break the `discord.py`API,
-   so I recommand creating a virtual environnement.
+2. **(Optional but highly recommended) Create a virtual environment.**
+   The `discord.py-self` API installation may break the standard `discord.py` API,
+   so I recommend creating a virtual environment.
 
-   For venv usage, check [https://www.w3schools.com/python/python_virtualenv.asp](this link)
+   For venv usage, check [this link](https://www.w3schools.com/python/python_virtualenv.asp).
 
-3. Install requirements
+3. Install requirements:
 
    ```sh
    pip install -r requirements.txt
    ```
 
-<!-- USAGE EXAMPLES -->
 ## Usage
 
-Launch program
+Launch the program:
 
-Linux:
+**Linux:**
 
 ```sh
 python3 main.py
 ```
 
-Windows:
+**Windows:**
 
 ```sh
 python main.py
 ```
 
-If it's your first time, the program will open the configuration manager. You
-will have to register at least one server and one selfbot.
-All the config options are straight forward, but maybe not the reorder option.
-The inputs for reorder are "s" to save the new order, "q" to quit without saving
-or "x y" to move a server from index x to index y.
+If this is your first time running the program, the configuration manager will
+open. You will need to register at least one server and one selfbot.
+
+Most configuration options are straightforward. For the **reorder** option, the inputs are:
+
+* `s`: Save the new order.
+* `q`: Quit without saving.
+* `x y`: Move a server from index `x` to index `y`.
