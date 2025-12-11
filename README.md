@@ -6,7 +6,6 @@ A CLI program to automate bumping your Discord servers on Disboard.org.
 
 ## Disclaimer
 
-> **Warning**
 > Automating user accounts (self-botting) is a violation of Discord's Terms of Service and Disboard's rules.
 
 This software is a proof of concept designed for educational purposes only.
@@ -22,9 +21,7 @@ and optimize bumping efficiency.
 
 ## Security Warning
 
-> **CRITICAL - PLEASE READ**
-
-The file `data/selfbots.json` contains the Discord **tokens** of the registered accounts in plain text.
+⚠️ The file `data/selfbots.json` contains the Discord **tokens** of the registered accounts in plain text.
 
 Please **NEVER** share this file with anyone.
 
@@ -64,7 +61,8 @@ python main.py
 
 If this is your first time running the program, the configuration manager will
 open. You will need to register at least one server and one selfbot.
-To get 
+
+[How do I get my discord token ?](https://discordpy-self.readthedocs.io/en/latest/authenticating.html)
 
 Most configuration options are straightforward. For the **reorder** option, the inputs are:
 
