@@ -2,7 +2,8 @@ import json
 import logging
 import time
 from pathlib import Path
-
+from rich.table import Table
+from rich import box
 from src.autobump_selfbot_service import AutoBumpSelfbotService
 from src.console import console
 
@@ -356,22 +357,82 @@ class DataManager():
             server["NextBumpTimestamp"] = round(time.time()) + cooldown * 60
             self._save_servers()
 
-    def display_selfbots(self):
-        console.print(f"\n--- Registered Bots ({len(self.selfbots)}) ---")
-        if not self.selfbots:
-            console.print("No bots found.")
+    def change_order_of_servers(self, new_server_list: list):
+        required_keys = {"GuildId", "GuildName", "ChannelId", "ChannelName", "NextBumpTimestamp"}
+        is_valid = all(server.keys() == required_keys for server in new_server_list)
+        if is_valid:
+            if new_server_list != self.servers:
+                self.servers = new_server_list
+                self._save_servers()
+                console.print("[green]Server order changed.")
+            else:
+                console.print("[yellow]New order is the same as before, no changes.[/]")
         else:
-            for bot_id, data in self.selfbots.items():
-                now = time.time()
-                delta = (data["NextBumpTimestamp"] - now ) / 60 # type: ignore
-                console.print(f"ID: {bot_id} | Name: [magenta]{data['Name']}[/] | Next bump in {round(delta)} minutes")
+            console.print(f"[red]Error:[/] new server list do not contains the required keys ({required_keys})")
 
-    def display_servers(self):
-        console.print(f"\n--- Registered Servers ({len(self.servers)}) ---")
+    def display_selfbots(self):
+        console.print("\n")
+        if not self.selfbots:
+            console.print("[red]No bots found.[/red]")
+            return
+
+        selfbot_table = Table(title="Registered Selfbots", box=box.ROUNDED)
+
+        selfbot_table.add_column("ID", style="cyan", no_wrap=True)
+        selfbot_table.add_column("Name", style="magenta")
+        selfbot_table.add_column("Status", justify="right")
+
+        for bot_id, bot_data in self.selfbots.items():
+            now = time.time()
+            minutes_remaining = (bot_data["NextBumpTimestamp"] - now) / 60 # type: ignore
+            
+            if minutes_remaining <= 0:
+                time_display = "[bold green]Ready to bump![/]"
+            else:
+                time_display = f"[yellow]Ready in {round(minutes_remaining)} min[/]"
+
+            selfbot_table.add_row(
+                str(bot_id),
+                str(bot_data['Name']),
+                time_display
+            )
+
+        console.print(selfbot_table)
+
+    def display_servers(self, show_index: bool = False):
+        console.print("\n")
         if not self.servers:
-            console.print("No servers found.")
-        else:
-            for server in self.servers:
-                now = time.time()
-                delta = (server["NextBumpTimestamp"] - now ) / 60 # type: ignore
-                console.print(f"Server: {server['GuildName']} ({server['GuildId']}) -> Channel: {server['ChannelName']} ({server['ChannelId']}), bumpable in {round(delta)} minutes.")
+            console.print("[red]No servers found.[/red]")
+            return
+
+        server_table = Table(title=f"Registered Servers ({len(self.servers)})", box=box.ROUNDED)
+
+        if show_index:
+            server_table.add_column("Index", style="purple")
+        server_table.add_column("Server Name", style="blue")
+        if not show_index:
+            server_table.add_column("Target Channel", style="cyan")
+            server_table.add_column("Status", justify="right")
+
+        for index, server in enumerate(self.servers, start=1):
+            now = time.time()
+            minutes_remaining = (server["NextBumpTimestamp"] - now) / 60 # type: ignore
+
+            if minutes_remaining <= 0:
+                status_display = "[bold green]Ready to bump[/]"
+            else:
+                status_display = f"[yellow]{round(minutes_remaining)} min until bump[/]"
+
+            if show_index:
+                server_table.add_row(
+                    str(index),
+                    f"{server['GuildName']}",
+                )
+            else:
+                server_table.add_row(
+                    f"{server['GuildName']}",
+                    f"{server['ChannelName']}",
+                    status_display
+                )
+
+        console.print(server_table)

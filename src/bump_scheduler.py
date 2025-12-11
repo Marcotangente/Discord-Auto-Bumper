@@ -7,7 +7,6 @@ from rich.table import Table
 from rich import box
 from rich.prompt import Prompt
 
-from src.autobump_selfbot_service import AutoBumpSelfbotService
 from src.json_manager import DataManager
 from src.console import console
 
@@ -20,13 +19,14 @@ class ProgramState(IntEnum):
 
 class BumpScheduler():
     def __init__(self, data_manager: DataManager) -> None:
+        self.bump_count = 0
         self.data_manager = data_manager
         if not self.data_manager.selfbots or not self.data_manager.servers:
             logger.warning("No selfbots or servers configured. Entering configuration mode.")
             self.state = ProgramState.CONFIGURATING
         else:
             self.state = ProgramState.BUMPING
-            logger.info("Scheduler initialized. Starting loop...")
+            logger.info("Starting auto-bump loop...")
 
     def loop(self):
         while self.state != ProgramState.EXIT:
@@ -76,6 +76,7 @@ class BumpScheduler():
                                 if result.success:
                                     logger.info(f"Server bumped! Next bump in {result.next_bump_delay_minutes} min.")
                                     self.data_manager.set_selfbot_cooldown(sb_id, 30)
+                                    self.bump_count += 1
                                 else:
                                     logger.info(f"Bump failed. Cooldown set to {result.next_bump_delay_minutes} min.")
 
@@ -100,7 +101,7 @@ class BumpScheduler():
         menu_table = Table(show_header=False, box=None, padding=(0, 2))
         menu_table.add_column("ID", style="bold cyan", justify="right")
         menu_table.add_column("Description", style="white")
-        menu_table.add_row("1.", "Auto Bumper Loop")
+        menu_table.add_row("1.", "Resume Auto Bumper Loop")
         menu_table.add_row("2.", "Display selfbots")
         menu_table.add_row("3.", "Register new selfbot")
         menu_table.add_row("4.", "Remove selfbot")
@@ -127,68 +128,135 @@ class BumpScheduler():
             show_choices=False
         )
 
-        if choice == "1":
-            console.clear()
-            logger.info("Resuming auto-bump loop...")
-            self.state = ProgramState.BUMPING
-        elif choice == "2":
-            self.data_manager.display_selfbots()
-            console.input("Press [#99aab5]Enter[/] to continue...")
-        elif choice == "3":
-            token = console.input("Account token: ")
-            service = self.data_manager.register_and_start_selfbot_service(token)
-            if service is not None:
-                service.stop()
-        elif choice == "4":
-            guild_id = console.input("Selfbot ID to remove: ")
-            if guild_id.isdigit():
-                self.data_manager.remove_selfbot(int(guild_id))
-            else:
-                console.print("Invalid ID.")
-            time.sleep(2)
-        elif choice == "5":
-            self.data_manager.display_servers()
-            console.input("Press [#99aab5]Enter[/] to continue...")
-        elif choice == "6":
-            guild_id = console.input("Server ID: ")
-            channel_id = console.input("Channel ID: ")
-            if guild_id.isdigit() and channel_id.isdigit():
-                for selfbot_id in self.data_manager.selfbots.keys():
-                    sb_id = int(selfbot_id)
-                    selfbot_service = self.data_manager.update_and_start_selfbot_service(sb_id)
-                    if selfbot_service is not None:
-                        registered = self.data_manager.register_server(int(guild_id), int(channel_id), selfbot_service)
-                        selfbot_service.stop()
-                        if registered:
-                            break
-            else:
-                console.print("Invalid inputs.")
-            time.sleep(2)
-        elif choice == "7":
-            guild_id = console.input("Server ID to remove: ")
-            if guild_id.isdigit():
-                self.data_manager.remove_server(int(guild_id))
-            else:
-                console.print("Invalid ID.")
-            time.sleep(2)
+        match choice:
+            case "1":
+                console.clear()
+                logger.info("Resuming auto-bump loop...")
+                self.state = ProgramState.BUMPING
+            case "2":
+                self.data_manager.display_selfbots()
+                console.input("Press [#99aab5]Enter[/] to continue...")
+            case "3":
+                token = console.input("Account token: ")
+                service = self.data_manager.register_and_start_selfbot_service(token)
+                if service is not None:
+                    service.stop()
+            case "4":
+                guild_id = console.input("Selfbot ID to remove: ")
+                if guild_id.isdigit():
+                    self.data_manager.remove_selfbot(int(guild_id))
+                else:
+                    console.print("Invalid ID.")
+                time.sleep(2)
+            case "5":
+                self.data_manager.display_servers()
+                console.input("Press [#99aab5]Enter[/] to continue...")
+            case "6":
+                guild_id = console.input("Server ID: ")
+                channel_id = console.input("Channel ID: ")
+                if guild_id.isdigit() and channel_id.isdigit():
+                    for selfbot_id in self.data_manager.selfbots.keys():
+                        sb_id = int(selfbot_id)
+                        selfbot_service = self.data_manager.update_and_start_selfbot_service(sb_id)
+                        if selfbot_service is not None:
+                            registered = self.data_manager.register_server(int(guild_id), int(channel_id), selfbot_service)
+                            selfbot_service.stop()
+                            if registered:
+                                break
+                else:
+                    console.print("Invalid inputs.")
+                time.sleep(2)
+            case "7":
+                guild_id = console.input("Server ID to remove: ")
+                if guild_id.isdigit():
+                    self.data_manager.remove_server(int(guild_id))
+                else:
+                    console.print("Invalid ID.")
+                time.sleep(2)
 
-        elif choice == "8":
-            self._reorder_servers()
+            case "8":
+                self._reorder_servers()
 
-        elif choice == "0":
-            self.state = ProgramState.EXIT
-        else:
-            console.print("Invalid option.")
+            case "0":
+                self.state = ProgramState.EXIT
+            case _:
+                console.print("Invalid option.")
 
     def _reorder_servers(self):
-        finished = False
-        while not finished:
-            self.data_manager.display_servers()
-            caca = input()
-            if caca.isdigit():
-                finished = True
+        save = False
+        temporary_server_list = self.data_manager.servers.copy()
+        while True:
+            console.clear()
+            self._display_reordering_servers(temporary_server_list)
+            user_input = Prompt.ask(
+                "Enter [bold cyan]index target[/] to move, [bold green]s[/]ave, or [bold red]q[/]uit",
+                default="q",
+                show_default=False
+            )
+            if user_input == "s" or user_input == "save":
+                save = True
+                break
+
+            if user_input == "q" or user_input == "quit":
+                break
+
+            splitted_input = user_input.split()
+            if len(splitted_input) != 2:
+                console.print("[red]Error:[/] Please enter exactly two numbers separated by a space.")
+                time.sleep(1.5)
+                continue
+            try:
+                current_index = int(splitted_input[0])
+                target_index = int(splitted_input[1])
+
+                # actual indices
+                current_index -= 1
+                target_index -= 1
+
+                if current_index < 0 or current_index >= len(temporary_server_list):
+                    console.print("[red]Error:[/] Please enter a valid index")
+                    time.sleep(1.5)
+                    continue
+                target_index = max(0, target_index)
+                target_index = min(target_index, len(temporary_server_list) - 1)
+
+                server = temporary_server_list.pop(current_index)
+                temporary_server_list.insert(target_index, server)
+
+            except ValueError:
+                console.print("[red]Error:[/] Please enter exactly two numbers separated by a space.")
+                time.sleep(1.5)
+                    
+        if save:
+            self.data_manager.change_order_of_servers(temporary_server_list)
+            time.sleep(3)
+        else:
+            console.print("[yellow]No changes were made.[/]")
+            time.sleep(1.5)
+
+
+    def _display_reordering_servers(self, server_list: list):
+        console.print("\n")
+        if not server_list:
+            console.print("[red]No servers.[/red]")
+            return
+
+        server_table = Table(title=f"Servers order", box=box.ROUNDED)
+
+        server_table.add_column("Index", style="purple")
+        server_table.add_column("Server Name", style="blue")
+
+        for index, server in enumerate(server_list, start=1):
+
+            server_table.add_row(
+                str(index),
+                f"{server['GuildName']}",
+            )
+
+        console.print(server_table)
+
 
     def _exit(self):
-        console.print("Goodbye!")
-        time.sleep(1)
+        console.print(f"Goodbye ! {self.bump_count} bump sent this session.")
+        time.sleep(1.75)
         sys.exit(0)
