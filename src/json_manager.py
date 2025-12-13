@@ -337,10 +337,9 @@ class DataManager():
         else:
             console.print(f"Server ID {guild_id} not found.")
 
-    def is_server_bumpable(self, id: int) -> bool:
+    def is_server_bumpable(self, server) -> bool:
         """Check if the cooldown of the server has expired."""
 
-        server = next((server for server in self.servers if server["GuildId"] == id), None)
         if server is None or not isinstance(server["NextBumpTimestamp"], int) :
             return False
         return server["NextBumpTimestamp"] <= time.time()
@@ -399,7 +398,7 @@ class DataManager():
 
         console.print(selfbot_table)
 
-    def display_servers(self, show_index: bool = False):
+    def display_servers(self):
         console.print("\n")
         if not self.servers:
             console.print("[red]No servers found.[/red]")
@@ -407,12 +406,10 @@ class DataManager():
 
         server_table = Table(title=f"Registered Servers ({len(self.servers)})", box=box.ROUNDED)
 
-        if show_index:
-            server_table.add_column("Index", style="purple")
+        server_table.add_column("ID", style="cyan", no_wrap=True)
         server_table.add_column("Server Name", style="blue")
-        if not show_index:
-            server_table.add_column("Target Channel", style="cyan")
-            server_table.add_column("Status", justify="right")
+        server_table.add_column("Target Channel", style="cyan")
+        server_table.add_column("Status", justify="right")
 
         for index, server in enumerate(self.servers, start=1):
             now = time.time()
@@ -423,16 +420,11 @@ class DataManager():
             else:
                 status_display = f"[yellow]{round(minutes_remaining)} min until bump[/]"
 
-            if show_index:
-                server_table.add_row(
-                    str(index),
-                    f"{server['GuildName']}",
-                )
-            else:
-                server_table.add_row(
-                    f"{server['GuildName']}",
-                    f"{server['ChannelName']}",
-                    status_display
-                )
+            server_table.add_row(
+                f"{server['GuildId']}",
+                f"{server['GuildName']}",
+                f"{server['ChannelName']}",
+                status_display
+            )
 
         console.print(server_table)

@@ -54,7 +54,7 @@ class BumpScheduler():
         for server in self.data_manager.servers:
             guild_id = int(server["GuildId"])
             
-            if self.data_manager.is_server_bumpable(guild_id):
+            if self.data_manager.is_server_bumpable(server):
                 logger.info(f"Server {guild_id} is bumpable. Searching for available selfbot...")
                 
                 for selfbot_id in self.data_manager.selfbots.keys():
@@ -92,7 +92,7 @@ class BumpScheduler():
                     time.sleep(1)
 
         # check state while waiting fo be more reactive to ctrl-c
-        for _ in range(10):
+        for _ in range(60):
             if self.state != ProgramState.BUMPING:
                 break
             time.sleep(1)
