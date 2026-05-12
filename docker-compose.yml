@@ -1,0 +1,22 @@
+services:
+  bumper:
+    build: .                              # location of the Dockerfile
+    container_name: discord-auto-bumper
+    volumes:
+      - ./data:/app/data
+    restart: ${RESTART:-no}
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  config:
+    build: .
+    container_name: discord-bumper-config
+    profiles:
+      - setup
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
+    command: python main.py --config
