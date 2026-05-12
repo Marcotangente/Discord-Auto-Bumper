@@ -17,7 +17,7 @@ including account bans or restrictions from Discord or Disboard.
 
 * **Multi-server support:** Register and bump multiple servers automatically.
 * **Multi-account management:** Use several Discord accounts to handle cooldowns
-and maximize bumping efficiency.
+and use a random account for each bump.
 
 ## Security Warning
 
@@ -40,6 +40,9 @@ Anyone with access to your token has full access to your Discord account.
 3. Configurate the container.
     Copy the `.env.example` file to `.env`
     Edit the value of the `RESTART` variable to set the restart policy of the main program.
+    Edit the value of the `MIN_WAIT_TIME` and `MAX_WAIT_TIME` variables to set the random delay before bumping.
+    After bumping all the servers, the program will compute the time of the next bump and add this random delay.
+    To disable it you can just set both variables to 0.
 
     ------
     **Linux only**
