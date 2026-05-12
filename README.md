@@ -37,9 +37,24 @@ Anyone with access to your token has full access to your Discord account.
     cd Discord-Auto-Bumper
 ```
 
-3. (Optional) Set the restart policy of the container.
-  Copy the `.env.example` file to `.env` and edit the value of the `RESTART_POLICY` variable.
-  Or just edit the value in the `docker-compose.yml` if you are familiar with docker.
+3. Configurate the container.
+    Copy the `.env.example` file to `.env`
+    Edit the value of the `RESTART` variable to set the restart policy of the main program.
+
+    ------
+    **Linux only**
+
+    Create a `data` folder (if not Docker Compose will create it as root user)
+    ```sh
+        mkdir data
+    ```
+
+    Edit the values of the `FIXUID` and `FIXGID` so the container can give you the ownership of the `data` folder.
+
+    To see your UID and GID:
+    ```sh
+        id
+    ```
 
 ## Usage
 

@@ -2,6 +2,7 @@ services:
   bumper:
     build: .                              # location of the Dockerfile
     container_name: discord-auto-bumper
+    user: ${UID:-1000}:${GID:-1000}
     volumes:
       - ./data:/app/data
     restart: ${RESTART:-no}
@@ -11,7 +12,9 @@ services:
   config:
     build: .
     container_name: discord-bumper-config
+    user: ${UID:-1000}:${GID:-1000}
     profiles:
+      # makes the docker-compose up not start this service
       - setup
     volumes:
       - ./data:/app/data
