@@ -7,6 +7,7 @@ from rich.table import Table
 from rich import box
 from src.autobump_selfbot_service import AutoBumpSelfbotService
 from src.console import console
+import math
 
 @dataclass
 class Selfbot:
@@ -439,3 +440,12 @@ class DataManager():
 
         console.print(server_table)
 
+    def compute_global_cooldown(self) -> int:
+        if not self.servers:
+            return 60
+
+        now = time.time()
+        minimum_server_cooldown = min(self.servers, key=lambda server: server.next_bump_timestamp - now).next_bump_timestamp - now
+        minimum_selfbot_cooldown = min(self.selfbots.values(), key=lambda selfbot: selfbot.next_bump_timestamp - now).next_bump_timestamp - now
+
+        return math.ceil(max(minimum_server_cooldown, minimum_selfbot_cooldown, 0))

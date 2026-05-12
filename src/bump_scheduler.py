@@ -73,9 +73,9 @@ class BumpScheduler():
 
                     time.sleep(1)
 
-        # check state while waiting fo be more reactive to ctrl-c
-        # we do not have any state idk if it's reactive like that
-        for _ in range(60):
-            time.sleep(1)
+        cooldown = self.data_manager.compute_global_cooldown()
+        hours, minutes = divmod(cooldown/60, 60)
+        logger.info(f"Sleeping for {int(hours)} hours and {int(minutes)} minutes...")
+        time.sleep(cooldown)
 
 
