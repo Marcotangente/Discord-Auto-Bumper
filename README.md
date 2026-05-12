@@ -33,8 +33,8 @@ Anyone with access to your token has full access to your Discord account.
 
 2. Clone the repository.
 ```sh
-    git clone https://github.com/Marcotangente/Discord-Auto-Bumper.git
-    cd Discord-Auto-Bumper
+git clone https://github.com/Marcotangente/Discord-Auto-Bumper.git
+cd Discord-Auto-Bumper
 ```
 
 3. Configurate the container.
@@ -49,14 +49,14 @@ Anyone with access to your token has full access to your Discord account.
 
     Create a `data` folder (if not Docker Compose will create it as root user)
     ```sh
-        mkdir data
+    mkdir data
     ```
 
     Edit the values of the `FIXUID` and `FIXGID` so the container can give you the ownership of the `data` folder.
 
     To see your UID and GID:
     ```sh
-        id
+    id
     ```
 
 ## Usage
@@ -69,18 +69,18 @@ Most configuration options are straightforward. For the **reorder** option, the 
 2. Register at least one selfbot then one server. [How do I get my discord token?](https://discordpy-self.readthedocs.io/en/latest/authenticating.html)
 3. Start the main service in detached mode:
 ```sh
-    docker compose up -d
+docker compose up -d
 ```
 4. Enjoy your free bumps!
 
 To stop the program, you can run:
 ```sh
-    docker compose down
+docker compose down
 ```
 
 If the program does not seem to work, you can read the logs:
 ```sh
-    docker logs discord-auto-bumper 
+docker logs discord-auto-bumper 
 ```
 
 ----------
